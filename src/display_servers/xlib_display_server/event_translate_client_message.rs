@@ -1,3 +1,4 @@
+use super::xwrap::ISIZE;
 use super::DisplayEvent;
 use super::XWrap;
 use crate::models::WindowChange;
@@ -15,8 +16,8 @@ pub fn from_event(xw: &XWrap, event: xlib::XClientMessageEvent) -> Option<Displa
 
     //if the client is trying to toggle fullscreen without changing the window state, change it too
     if event.message_type == xw.atoms.NetWMState
-        && (event.data.get_long(1) == xw.atoms.NetWMStateFullscreen as i64
-            || event.data.get_long(2) == xw.atoms.NetWMStateFullscreen as i64)
+        && (event.data.get_long(1) == xw.atoms.NetWMStateFullscreen as ISIZE
+            || event.data.get_long(2) == xw.atoms.NetWMStateFullscreen as ISIZE)
     {
         let set_fullscreen = event.data.get_long(0) == 1;
         let toggle_fullscreen = event.data.get_long(0) == 2;
@@ -51,8 +52,8 @@ pub fn from_event(xw: &XWrap, event: xlib::XClientMessageEvent) -> Option<Displa
     None
 }
 
-fn goto_tag_by_index(xw: &XWrap, index: i64) -> Option<DisplayEvent> {
-    if index >= 0 && index < xw.tags.len() as i64 {
+fn goto_tag_by_index(xw: &XWrap, index: ISIZE) -> Option<DisplayEvent> {
+    if index >= 0 && index < xw.tags.len() as ISIZE {
         let tag_num = index + 1;
         Some(DisplayEvent::SendCommand(
             Command::GotoTag,

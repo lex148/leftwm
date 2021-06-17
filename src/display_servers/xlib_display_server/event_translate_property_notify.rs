@@ -1,3 +1,4 @@
+use super::xwrap::USIZE;
 use super::DisplayEvent;
 use super::XWrap;
 use crate::models::WindowChange;

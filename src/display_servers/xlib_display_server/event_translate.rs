@@ -1,5 +1,7 @@
 use super::event_translate_client_message;
 use super::event_translate_property_notify;
+use super::xwrap::ISIZE;
+use super::xwrap::USIZE;
 use super::DisplayEvent;
 use super::XWrap;
 use crate::models::Mode;
@@ -142,8 +144,12 @@ fn from_motion_notify(raw_event: xlib::XEvent, xw: &XWrap) -> DisplayEvent {
     let offset_y = event.y_root - xw.mode_origin.1;
     match &xw.mode {
         Mode::Normal => DisplayEvent::Movement(event_h, event.x_root, event.y_root),
-        Mode::MovingWindow(h) => DisplayEvent::MoveWindow(*h, event.time, offset_x, offset_y),
-        Mode::ResizingWindow(h) => DisplayEvent::ResizeWindow(*h, event.time, offset_x, offset_y),
+        Mode::MovingWindow(h) => {
+            DisplayEvent::MoveWindow(*h, event.time as u64, offset_x, offset_y)
+        }
+        Mode::ResizingWindow(h) => {
+            DisplayEvent::ResizeWindow(*h, event.time as u64, offset_x, offset_y)
+        }
     }
 }
 

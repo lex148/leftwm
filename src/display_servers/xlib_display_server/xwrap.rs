@@ -31,19 +31,31 @@ use tokio::sync::{oneshot, Notify};
 use tokio::time::Duration;
 use x11_dl::xlib;
 
+//NOTE: the rust x11 lib switches between u64/u32 for pointer sizes not usize. These types are so
+//we use the correct type when building for 32bit and 64bit arch. 32bit still used in arm land :(
+
+#[cfg(target_pointer_width = "64")]
+pub type USIZE = u64;
+#[cfg(target_pointer_width = "64")]
+pub type ISIZE = i64;
+#[cfg(target_pointer_width = "32")]
+pub type USIZE = u32;
+#[cfg(target_pointer_width = "32")]
+pub type ISIZE = i32;
+
 //type WindowStateConst = u8;
 //const WITHDRAWN_STATE: WindowStateConst = 0;
 //const NORMAL_STATE: WindowStateConst = 1;
 //const ICONIC_STATE: WindowStateConst = 2;
-const MAX_PROPERTY_VALUE_LEN: i64 = 4096;
+const MAX_PROPERTY_VALUE_LEN: ISIZE = 4096;
 
-const BUTTONMASK: i64 = xlib::ButtonPressMask | xlib::ButtonReleaseMask;
-const MOUSEMASK: i64 = BUTTONMASK | xlib::PointerMotionMask;
+const BUTTONMASK: ISIZE = xlib::ButtonPressMask | xlib::ButtonReleaseMask;
+const MOUSEMASK: ISIZE = BUTTONMASK | xlib::PointerMotionMask;
 
 pub struct Colors {
-    normal: c_ulong,
-    floating: c_ulong,
-    active: c_ulong,
+    normal: u64,
+    floating: u64,
+    active: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -411,7 +423,7 @@ impl XWrap {
             if status == i32::from(xlib::Success) && !prop_return.is_null() {
                 #[allow(clippy::cast_lossless, clippy::cast_ptr_alignment)]
                 //let result = *(prop_return as *const u32);
-                let ptr = prop_return as *const u64;
+                let ptr = prop_return as *const USIZE;
                 let results: &[xlib::Atom] = slice::from_raw_parts(ptr, nitems_return as usize);
                 return results.to_vec();
             }
@@ -638,7 +650,7 @@ impl XWrap {
                     let rh: u32 = window.height() as u32;
                     (self.xlib.XMoveResizeWindow)(self.display, h, window.x(), window.y(), rw, rh);
 
-                    let mut color: c_ulong = if is_focused {
+                    let mut color: u64 = if is_focused {
                         self.colors.active
                     } else if window.floating() {
                         self.colors.floating
@@ -650,7 +662,7 @@ impl XWrap {
                     bytes[4] = 0xff;
                     color = u64::from_be_bytes(bytes);
 
-                    (self.xlib.XSetWindowBorder)(self.display, h, color);
+                    (self.xlib.XSetWindowBorder)(self.display, h, color as USIZE);
                 }
                 if !is_focused && self.focus_behaviour == FocusBehaviour::ClickTo {
                     self.grab_buttons(h, xlib::Button1, xlib::AnyModifier);
@@ -767,7 +779,7 @@ impl XWrap {
         unsafe {
             (self.xlib.XWarpPointer)(
                 self.display,
-                none as u64,
+                none as USIZE,
                 self.get_default_root(),
                 none,
                 none,
@@ -1002,8 +1014,8 @@ impl XWrap {
             msg.window = window;
             msg.message_type = self.atoms.WMProtocols;
             msg.format = 32;
-            msg.data.set_long(0, atom as i64);
-            msg.data.set_long(1, xlib::CurrentTime as i64);
+            msg.data.set_long(0, atom as ISIZE);
+            msg.data.set_long(1, xlib::CurrentTime as ISIZE);
             let mut ev: xlib::XEvent = msg.into();
             unsafe { (self.xlib.XSendEvent)(self.display, window, 0, xlib::NoEventMask, &mut ev) };
             return true;
@@ -1360,7 +1372,7 @@ impl XWrap {
     }
 
     pub fn grab_keys(&self, root: xlib::Window, keysym: u32, modifiers: u32) {
-        let code = unsafe { (self.xlib.XKeysymToKeycode)(self.display, u64::from(keysym)) };
+        let code = unsafe { (self.xlib.XKeysymToKeycode)(self.display, USIZE::from(keysym)) };
         //grab the keys with and without numlock (Mod2)
         let mods: Vec<u32> = vec![
             modifiers,
@@ -1384,9 +1396,9 @@ impl XWrap {
 
     pub fn load_colors(&mut self, theme: &ThemeSetting) {
         self.colors = Colors {
-            normal: self.get_color(&theme.default_border_color),
-            floating: self.get_color(&theme.floating_border_color),
-            active: self.get_color(&theme.focused_border_color),
+            normal: self.get_color(&theme.default_border_color) as u64,
+            floating: self.get_color(&theme.floating_border_color) as u64,
+            active: self.get_color(&theme.focused_border_color) as u64,
         };
     }
 
@@ -1501,7 +1513,7 @@ impl XWrap {
         }
     }
 
-    pub fn grab_pointer(&self, cursor: u64) {
+    pub fn grab_pointer(&self, cursor: USIZE) {
         unsafe {
             //grab the mouse
             (self.xlib.XGrabPointer)(
